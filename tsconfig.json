@@ -1,0 +1,23 @@
+{
+  "compilerOptions": {
+    "declaration": true /* Generates corresponding '.d.ts' file. */,
+    "esModuleInterop": true,
+    "forceConsistentCasingInFileNames": true,
+    "importHelpers": true /* Import emit helpers from 'tslib'. */,
+    "module": "commonjs",
+    "moduleResolution": "node",
+    "noImplicitAny": false,
+    "outDir": "./lib",
+    "pretty": true,
+    "resolveJsonModule": true,
+    "rootDir": "./src",
+    "skipLibCheck": true,
+    "sourceMap": false,
+    "strict": true /* Enable all strict type-checking options. */,
+    "target": "es2017",
+    "types": ["node", "jest"]
+},
+  "include": [
+    "./src/**/*"
+  ]
+}
