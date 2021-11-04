@@ -43,6 +43,7 @@
   },
   "scripts": {
     "build": "rm -rf lib && tsc -b",
+    "prepack": "yarn run build",
     "test": "echo 'No tests for this testing library yest'",
     "version": "yarn build"
   },
