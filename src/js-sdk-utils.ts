@@ -6,6 +6,7 @@ import Debug from 'debug'
 const debug = Debug('nimbu:console.log')
 const Nimbu = {
   Cloud: {
+    // cloud code dsl
     extend: jest.fn(),
     job: jest.fn(),
     schedule: jest.fn(),
@@ -19,14 +20,36 @@ const Nimbu = {
     delete: jest.fn(),
     before: jest.fn(),
     after: jest.fn(),
+
+    // nimbu-js-sdk method to invoke a cloud function
+    run: jest.fn(),
   },
-  Future: NimbuSDK.Future,
-  Query: NimbuSDK.Query,
   Object: (...args: any[]) => {
     const result = new NimbuSDK.Object(...args)
     result.save = jest.fn()
     return result
   },
+  Error: NimbuSDK.Error,
+  Atomic: NimbuSDK.Atomic,
+  API: NimbuSDK.API,
+  Events: NimbuSDK.Events,
+  Future: NimbuSDK.Future,
+  Relation: NimbuSDK.Relation,
+  Gallery: NimbuSDK.Gallery,
+  GalleryImage: NimbuSDK.GalleryImage,
+  Query: NimbuSDK.Query,
+  Customer: NimbuSDK.Customer,
+  ACL: NimbuSDK.ACL,
+  Role: NimbuSDK.Role,
+  File: NimbuSDK.File,
+  Collection: NimbuSDK.Collection,
+  Coupon: NimbuSDK.Coupon,
+  Device: NimbuSDK.Device,
+  Order: NimbuSDK.Order,
+  ProductAggregate: NimbuSDK.ProductAggregate,
+  Product: NimbuSDK.Product,
+  SelectOption: NimbuSDK.SelectOption,
+  SelectOptionList: NimbuSDK.SelectOptionList,
 }
 
 jest.spyOn(Nimbu, 'Object')
