@@ -37,7 +37,7 @@ function getNamedHandler(type: CloudCodeFunctionType | CloudCodeJobType, nameSpe
 }
 
 function getCallbackHandler(type: CloudCodeCallbackTypes, spec: CallbackSpec) {
-  if (spec == null || !allEventTypes.includes(spec.event)) {
+  if (spec != null && spec.event != null && !allEventTypes.includes(spec.event)) {
     throw new Error(`invalid event type "${spec.event}"`)
   }
 
@@ -48,7 +48,7 @@ function getCallbackHandler(type: CloudCodeCallbackTypes, spec: CallbackSpec) {
 }
 
 export function getExtendHandler(spec: ExtensionSpec) {
-  if (spec == null || !allViewTypes.includes(spec.view)) {
+  if (spec != null && spec.view != null && !allViewTypes.includes(spec.view)) {
     throw new Error(`invalid view type "${spec.view}"`)
   }
 
