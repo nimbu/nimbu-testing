@@ -113,6 +113,10 @@ export function mockQueryResults(resultsPerSlug: { [k: string]: any }) {
 }
 
 export function objectFromFixture(type: string, json: string | Object) {
+  if (type == null) {
+    throw new Error('type is required')
+  }
+
   const data = isString(json) ? JSON.parse(json) : json
   const object = new NimbuSDK.Object(type)
   object._finishFetch(data, true)

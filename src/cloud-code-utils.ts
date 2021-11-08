@@ -1,12 +1,15 @@
 import { matches } from 'lodash'
 import Nimbu from './js-sdk-utils'
+import { ViewType, EventType } from './types'
 import { v4 as uuid } from 'uuid'
 
 type CloudCodeRouteTypes = 'route' | 'get' | 'post' | 'put' | 'patch' | 'delete'
 type CloudCodeCallbackTypes = 'before' | 'after'
 type CloudCodeJobType = 'job'
 type CloudCodeFunctionType = 'define'
-type CloudCodeExtensionType = 'extend'
+
+const allEventTypes = Object.values(EventType)
+const allViewTypes = Object.values(ViewType)
 
 export enum CloudCodeHandleType {
   Route,
@@ -17,37 +20,45 @@ export enum CloudCodeHandleType {
 }
 
 type ExtensionSpec = {
-  view: string
+  view: ViewType
   name: string
   slug?: string
 }
 
 type CallbackSpec = {
-  event: string
+  event: EventType
   slug?: string
 }
 
-function getNamedHandler(type: 'define' | 'job', nameSpec: string) {
+function getNamedHandler(type: CloudCodeFunctionType | CloudCodeJobType, nameSpec: string) {
   const call = Nimbu.Cloud[type].mock.calls.find(([name]) => name === nameSpec)
   if (!call) throw new Error(`no ${type} handler found matching ${JSON.stringify(nameSpec)}`)
   return call[1]
 }
 
-function getCallbackHandler(type: 'before' | 'after', spec: CallbackSpec) {
+function getCallbackHandler(type: CloudCodeCallbackTypes, spec: CallbackSpec) {
+  if (spec == null || !allEventTypes.includes(spec.event)) {
+    throw new Error(`invalid event type "${spec.event}"`)
+  }
+
   const matcher = matches(spec)
-  const call = Nimbu.Cloud.extend.mock.calls.find(([event, slug]) => matcher({ event, slug }))
+  const call = Nimbu.Cloud[type].mock.calls.find(([event, slug]) => matcher({ event, slug }))
   if (!call) throw new Error(`no ${type} callback handler found matching ${JSON.stringify(spec)}`)
   return call[2]
 }
 
 export function getExtendHandler(spec: ExtensionSpec) {
+  if (spec == null || !allViewTypes.includes(spec.view)) {
+    throw new Error(`invalid view type "${spec.view}"`)
+  }
+
   const matcher = matches(spec)
   const call = Nimbu.Cloud.extend.mock.calls.find(([view, slug, { name }]) => matcher({ view, slug, name }))
   if (!call) throw new Error(`no extend handler found matching ${JSON.stringify(spec)}`)
   return call[3]
 }
 
-export function getRouteHandler(verb: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE', routeSpec: string) {
+export function getRouteHandler(verb: CloudCodeRouteTypes, routeSpec: string) {
   const type = verb.toLowerCase()
   let call = Nimbu.Cloud[type].mock.calls.find(([route]) => route === routeSpec)
   if (call != null) {
