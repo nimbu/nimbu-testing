@@ -119,7 +119,7 @@ export function mockCallbackRequest(attributes: CallbackMockRequestAttributes) {
   }
   const response: CloudCodeCallbackResponse = {
     success: jest.fn(),
-    error: jest.fn(),
+    error: jest.fn((...args) => Nimbu.Future.error(...args)),
   }
 
   return { request, response }
@@ -167,7 +167,7 @@ export function mockRouteRequest(attributes: RouteMockRequestAttributes) {
     render: jest.fn(),
     redirect_to: jest.fn(),
     success: jest.fn(),
-    error: jest.fn(),
+    error: jest.fn((...args) => Nimbu.Future.error(...args)),
     json: jest.fn(),
     send: jest.fn(),
   }
@@ -199,7 +199,7 @@ export function mockJobRequest(attributes: JobMockRequestAttributes = {}) {
   }
   const response: CloudCodeJobResponse = {
     success: jest.fn(),
-    error: jest.fn(),
+    error: jest.fn((...args) => Nimbu.Future.error(...args)),
   }
 
   return { request, response }
@@ -244,7 +244,7 @@ export function mockFunctionRequest(attributes: FunctionMockRequestAttributes = 
   }
   const response: CloudCodeJobResponse = {
     success: jest.fn(),
-    error: jest.fn(),
+    error: jest.fn((...args) => Nimbu.Future.error(...args)),
   }
 
   return { request, response }
@@ -280,7 +280,7 @@ export function mockExtensionRequest(attributes: ExtensionMockRequestAttributes 
   }
   const response: CloudCodeExtensionResponse = {
     success: jest.fn(),
-    error: jest.fn(),
+    error: jest.fn((...args) => Nimbu.Future.error(...args)),
     send: jest.fn(),
     redirect_to: jest.fn(),
   }
