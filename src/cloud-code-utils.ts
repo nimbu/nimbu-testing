@@ -1,5 +1,6 @@
 import { matches } from 'lodash'
 import Nimbu from './js-sdk-utils'
+import { v4 as uuid } from 'uuid'
 
 type CloudCodeRouteTypes = 'route' | 'get' | 'post' | 'put' | 'patch' | 'delete'
 type CloudCodeCallbackTypes = 'before' | 'after'
@@ -191,7 +192,7 @@ type CloudCodeJobResponse = {
 
 type JobMockRequestAttributes = Partial<CloudCodeJobRequest>
 
-export function mockJobRequest(attributes: JobMockRequestAttributes) {
+export function mockJobRequest(attributes: JobMockRequestAttributes = {}) {
   const request: CloudCodeJobRequest = {
     params: {},
     ...attributes,
@@ -229,9 +230,16 @@ type CloudCodeFunctionResponse = {
 
 type FunctionMockRequestAttributes = Partial<CloudCodeFunctionRequest>
 
-export function mockFunctionRequest(attributes: FunctionMockRequestAttributes) {
+export function mockFunctionRequest(attributes: FunctionMockRequestAttributes = {}) {
+  const metaFromAttributes = attributes.meta || {}
+
   const request: CloudCodeJobRequest = {
     params: {},
+    meta: {
+      installation_id: uuid(),
+      request_id: uuid(),
+      ...metaFromAttributes,
+    },
     ...attributes,
   }
   const response: CloudCodeJobResponse = {
@@ -265,7 +273,7 @@ type CloudCodeExtensionResponse = {
 
 type ExtensionMockRequestAttributes = Partial<CloudCodeExtensionRequest>
 
-export function mockExtensionRequest(attributes: ExtensionMockRequestAttributes) {
+export function mockExtensionRequest(attributes: ExtensionMockRequestAttributes = {}) {
   const request: CloudCodeExtensionRequest = {
     params: {},
     ...attributes,
@@ -301,7 +309,7 @@ export function mockRequest(
 
 export function mockRequest(
   type: CloudCodeHandleType.Function,
-  attributes: FunctionMockRequestAttributes,
+  attributes?: FunctionMockRequestAttributes,
 ): { request: CloudCodeFunctionRequest; response: CloudCodeFunctionResponse }
 
 export function mockRequest(
@@ -309,7 +317,7 @@ export function mockRequest(
   attributes: ExtensionMockRequestAttributes,
 ): { request: CloudCodeExtensionRequest; response: CloudCodeExtensionResponse }
 
-export function mockRequest(type: CloudCodeHandleType, attributes: any): any {
+export function mockRequest(type: CloudCodeHandleType, attributes?: any): any {
   switch (type) {
     case CloudCodeHandleType.Callback:
       return mockCallbackRequest(attributes)

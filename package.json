@@ -7,18 +7,24 @@
     "url": "https://github.com/nimbu/nimbu-testing/issues"
   },
   "dependencies": {
+    "fetch-mock-jest": "^1.5.1",
     "jest": "^27.3.1",
     "lodash": "^4.17.21",
-    "nimbu-js-sdk": "^1.6.5"
+    "nimbu-js-sdk": "^1.6.5",
+    "node-fetch": "^2",
+    "uuid": "^8.3.2"
   },
   "devDependencies": {
     "@types/debug": "^4.1.7",
     "@types/jest": "^27.0.2",
     "@types/lodash": "^4.14.176",
     "@types/node": "^16.10.3",
+    "@types/node-fetch": "^3.0.3",
     "@types/semver": "^7.3.8",
+    "@types/uuid": "^8.3.1",
     "debug": "^4.1.1",
     "esm": "^3.2.25",
+    "is-retry-allowed": "^3.0.0",
     "np": "^7.5.0",
     "nyc": "^14.1.1",
     "standard": "^13.0.1",
