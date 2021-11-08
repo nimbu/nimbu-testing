@@ -1,7 +1,7 @@
 {
   "name": "@nimbu/testing",
   "description": "A set of utilities useful for testing Nimbu Cloud Code and the Nimbu JS SDK",
-  "version": "0.1.1",
+  "version": "0.2.0",
   "author": "Zenjoy Engineering",
   "bugs": {
     "url": "https://github.com/nimbu/nimbu-testing/issues"
