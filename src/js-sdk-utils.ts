@@ -89,8 +89,37 @@ export async function setup(options: ISetupOptions = {}) {
   await Nimbu.initialize(uuid())
 }
 
+const mockQueryFns = [
+  'equalTo',
+  'notEqualTo',
+  'lessThan',
+  'greaterThan',
+  'lessThanOrEqualTo',
+  'greaterThanOrEqualTo',
+  'containedIn',
+  'notContainedIn',
+  'containsAll',
+  'exists',
+  'doesNotExist',
+  'matches',
+  'startsWith',
+  'endsWith',
+  'geoIntersects',
+  'geoWithin',
+  'near',
+  'nearCoordinates',
+  'ascending',
+  'descending',
+  'include',
+  'only',
+  'skip',
+  'page',
+  'per',
+  'limit',
+]
+
 const createMockQuery = (result: any) => ({
-  equalTo: jest.fn().mockReturnThis(),
+  ...mockQueryFns.reduce((mock, fn) => ({ ...mock, [fn]: jest.fn().mockReturnThis() }), {}),
   first: () => NimbuSDK.Future.as(result),
 })
 
