@@ -110,5 +110,4 @@ Temporary Items
 
 # Typescript incremental build files
 tsconfig.tsbuildinfo
-yarn.lock
 lib/

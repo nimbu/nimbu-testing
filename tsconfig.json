@@ -4,8 +4,9 @@
     "esModuleInterop": true,
     "forceConsistentCasingInFileNames": true,
     "importHelpers": true /* Import emit helpers from 'tslib'. */,
-    "module": "commonjs",
-    "moduleResolution": "node",
+    "isolatedModules": true,
+    "module": "Node16",
+    "moduleResolution": "node16",
     "noImplicitAny": false,
     "outDir": "./lib",
     "pretty": true,
@@ -16,8 +17,6 @@
     "strict": true /* Enable all strict type-checking options. */,
     "target": "es2017",
     "types": ["node", "jest"]
-},
-  "include": [
-    "./src/**/*"
-  ]
+  },
+  "include": ["./src/**/*"]
 }
