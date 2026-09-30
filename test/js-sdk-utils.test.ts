@@ -109,6 +109,108 @@ describe('Nimbu SDK test helpers', () => {
     expect(destinationQuery.equalTo).toHaveBeenCalledWith('code', 'missing')
   })
 
+  test('Nimbu.Query works as a constructor and accepts registered classes', async () => {
+    mockQueryResults({ orders: [{ id: 'order-1' }] })
+
+    const query = new Nimbu.Query('orders')
+    const Order = Nimbu.Object.extend('orders')
+
+    expect(query).toBeInstanceOf(Nimbu.Query)
+    expect((await query.find()).map((order: any) => order.id)).toEqual(['order-1'])
+    expect((await new Nimbu.Query(Order).first())?.id).toBe('order-1')
+  })
+
+  test('first() leaves the query limit alone, like SDK v2', async () => {
+    mockQueryResults({
+      orders: [
+        { id: 'order-1', total: 10 },
+        { id: 'order-2', total: 20 },
+      ],
+    })
+    const query = Nimbu.Query('orders').ascending('total')
+
+    expect((await query.first())?.id).toBe('order-1')
+    expect((await query.find()).map((order: any) => order.id)).toEqual(['order-1', 'order-2'])
+    expect(await Nimbu.Query('orders').equalTo('total', 99).first()).toBeUndefined()
+  })
+
+  test('ascending/descending replace the sort and addAscending adds a secondary key', async () => {
+    mockQueryResults({
+      orders: [
+        { id: 'a', status: 'paid', total: 20 },
+        { id: 'b', status: 'draft', total: 10 },
+        { id: 'c', status: 'paid', total: 10 },
+      ],
+    })
+    const ids = async (query: any) => (await query.find()).map((order: any) => order.id)
+
+    expect(await ids(Nimbu.Query('orders').descending('total').ascending('id'))).toEqual(['a', 'b', 'c'])
+    expect(await ids(Nimbu.Query('orders').ascending('status').addDescending('total'))).toEqual(['b', 'a', 'c'])
+    expect(await ids(Nimbu.Query('orders').ascending('status, id'))).toEqual(['b', 'a', 'c'])
+  })
+
+  test('clone copies constraints without sharing later changes', async () => {
+    mockQueryResults({
+      orders: [
+        { id: 'order-1', status: 'paid' },
+        { id: 'order-2', status: 'paid' },
+        { id: 'order-3', status: 'draft' },
+      ],
+    })
+    const paid = Nimbu.Query('orders').equalTo('status', 'paid')
+    const copy = paid.clone()
+    copy.limit(1)
+
+    expect(await paid.count()).toBe(2)
+    expect(await copy.find()).toHaveLength(1)
+  })
+
+  test('contains, search, includeAll and each follow the SDK query API', async () => {
+    mockQueryResults({
+      orders: [
+        { id: 'order-1', tags: ['vip'], note: 'Rush delivery' },
+        { id: 'order-2', tags: [], note: 'regular' },
+      ],
+    })
+    const seen: string[] = []
+
+    expect((await Nimbu.Query('orders').contains('tags', 'vip').find()).map((o: any) => o.id)).toEqual(['order-1'])
+    expect((await Nimbu.Query('orders').contains('note', 'Rush').find()).map((o: any) => o.id)).toEqual(['order-1'])
+    expect((await Nimbu.Query('orders').search('rush').includeAll().find()).map((o: any) => o.id)).toEqual(['order-1'])
+    await Nimbu.Query('orders').each((order: any) => seen.push(order.id))
+    expect(seen).toEqual(['order-1', 'order-2'])
+    await expect(
+      Nimbu.Query('orders')
+        .limit(1)
+        .each(() => {}),
+    ).rejects.toBe('Cannot iterate on a query with sort, skip, or limit.')
+  })
+
+  test('realtime entry points throw REALTIME_CLOSED, as in Nimbu Cloud Code', async () => {
+    await setup({ fixtures: { orders: [{ id: 'order-1' }] } })
+    const order = await Nimbu.Query('orders').get('order-1')
+    const closed = expect.objectContaining({ code: Nimbu.Error.REALTIME_CLOSED })
+
+    expect(() => Nimbu.Query('orders').subscribe({})).toThrow(closed)
+    expect(() => Nimbu.Query('orders').live()).toThrow(closed)
+    expect(() => Nimbu.Object.watch({})).toThrow(closed)
+    expect(() => order.watch({})).toThrow(closed)
+  })
+
+  test('objects from the factory are Nimbu.Object instances and keep short_id across saves', async () => {
+    await setup({ fixtures: { orders: [{ id: 'order-1', short_id: 'ABC123', status: 'draft' }] } })
+
+    const order = await Nimbu.Query('orders').get('order-1')
+    order.set('status', 'paid')
+    await order.save()
+    const reloaded = await Nimbu.Query('orders').get('order-1')
+
+    expect(Nimbu.Object('orders')).toBeInstanceOf(Nimbu.Object)
+    expect(order.get('short_id')).toBeUndefined()
+    expect(reloaded.shortId).toBe('ABC123')
+    expect(reloaded.get('status')).toBe('paid')
+  })
+
   test('fixture helpers hydrate objects and customers', () => {
     const order = objectFromFixture('orders', '{"id":"order-1","status":"paid"}')
     const customer = customerFromFixture({ id: 'customer-1', email: 'peter@example.com' })

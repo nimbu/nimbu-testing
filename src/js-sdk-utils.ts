@@ -151,6 +151,8 @@ function serializeObject(object: any): JsonObject {
   const json = typeof object.toJSON === 'function' ? object.toJSON() : { ...object.attributes }
   if (object.id != null) json.id = object.id
   if (object.className != null) json.className = object.className
+  // SDK v2 keeps short_id off the attributes; keep it in the store so later loads still expose `shortId`.
+  if (json.short_id == null && object.shortId != null) json.short_id = object.shortId
   return clone(json)
 }
 
@@ -205,6 +207,9 @@ function patchObjectPersistence(object: any) {
   })
 
   object.destroy = jest.fn(async () => destroyFromStore(object))
+  object.watch = jest.fn(() => {
+    throw realtimeUnavailable()
+  })
   object.fetch = jest.fn(async () => {
     if (!object.id) throw new NimbuSDKAny.Error(101, 'Object not found.')
     const data = store.get(object.className)?.get(object.id)
@@ -214,6 +219,17 @@ function patchObjectPersistence(object: any) {
   })
 
   return object
+}
+
+function sortKeys(keys: Array<string | string[]>) {
+  return keys.flatMap((key) => (Array.isArray(key) ? key.join() : key).replace(/\s/g, '').split(',')).filter(Boolean)
+}
+
+function realtimeUnavailable() {
+  return new NimbuSDKAny.Error(
+    NimbuSDKAny.Error.REALTIME_CLOSED,
+    'Realtime is not supported in this environment: no WebSocket.',
+  )
 }
 
 class TestingQuery {
@@ -297,17 +313,47 @@ class TestingQuery {
     return this
   })
 
-  ascending = jest.fn((field: string) => {
-    this.sorters.push({ field, direction: 'asc' })
+  contains = jest.fn((field: string, value: any) => {
+    this.filters.push((object) => {
+      const fieldValue = readField(object, field)
+      if (Array.isArray(fieldValue)) return fieldValue.includes(value)
+      return String(fieldValue ?? '').includes(String(value))
+    })
     return this
   })
 
-  descending = jest.fn((field: string) => {
-    this.sorters.push({ field, direction: 'desc' })
+  search = jest.fn((term: string) => {
+    const needle = String(term).toLowerCase()
+    this.filters.push((object) =>
+      JSON.stringify(isNimbuObjectLike(object) ? serializeObject(object) : object)
+        .toLowerCase()
+        .includes(needle),
+    )
+    return this
+  })
+
+  ascending = jest.fn((...keys: Array<string | string[]>) => {
+    this.sorters = []
+    return this.addAscending(...keys)
+  })
+
+  addAscending = jest.fn((...keys: Array<string | string[]>) => {
+    for (const field of sortKeys(keys)) this.sorters.push({ field, direction: 'asc' })
+    return this
+  })
+
+  descending = jest.fn((...keys: Array<string | string[]>) => {
+    this.sorters = []
+    return this.addDescending(...keys)
+  })
+
+  addDescending = jest.fn((...keys: Array<string | string[]>) => {
+    for (const field of sortKeys(keys)) this.sorters.push({ field, direction: 'desc' })
     return this
   })
 
   include = jest.fn(() => this)
+  includeAll = jest.fn(() => this)
   only = jest.fn(() => this)
   geoIntersects = jest.fn(() => this)
   geoWithin = jest.fn(() => this)
@@ -338,30 +384,59 @@ class TestingQuery {
     this.className = className
   }
 
-  private rawResults() {
+  private rawResults(limitCount = this.limitCount) {
     let results = Array.from(ensureClassStore(this.className).values())
     results = results.filter((object) => this.filters.every((filter) => filter(object)))
-    for (const { field, direction } of this.sorters) {
+    if (this.sorters.length > 0) {
       results.sort((left, right) => {
-        const leftValue = readField(left, field)
-        const rightValue = readField(right, field)
-        if (leftValue === rightValue) return 0
-        const comparison = leftValue > rightValue ? 1 : -1
-        return direction === 'asc' ? comparison : -comparison
+        for (const { field, direction } of this.sorters) {
+          const leftValue = readField(left, field)
+          const rightValue = readField(right, field)
+          if (leftValue === rightValue) continue
+          const comparison = leftValue > rightValue ? 1 : -1
+          return direction === 'asc' ? comparison : -comparison
+        }
+        return 0
       })
     }
     if (this.skipCount > 0) results = results.slice(this.skipCount)
-    if (this.limitCount >= 0) results = results.slice(0, this.limitCount)
+    if (limitCount >= 0) results = results.slice(0, limitCount)
     return results
   }
+
+  clone = jest.fn(() => {
+    const copy = new TestingQuery(this.className)
+    copy.filters = [...this.filters]
+    copy.sorters = [...this.sorters]
+    copy.skipCount = this.skipCount
+    copy.limitCount = this.limitCount
+    return copy
+  })
 
   find = jest.fn(async () => this.rawResults().map((data) => objectFromStore(this.className, data)))
 
   findAll = jest.fn(async () => this.find())
 
+  // Like SDK v2, first() leaves the query's own limit alone.
   first = jest.fn(async () => {
-    const [first] = await this.limit(1).find()
-    return first
+    const [first] = this.rawResults(1)
+    return first == null ? undefined : objectFromStore(this.className, first)
+  })
+
+  each = jest.fn(async (callback: (object: any) => any) => {
+    if (this.sorters.length > 0 || this.skipCount > 0 || this.limitCount >= 0) {
+      throw 'Cannot iterate on a query with sort, skip, or limit.'
+    }
+    for (const object of await this.find()) await callback(object)
+  })
+
+  // Nimbu Cloud Code has no WebSocket, so the SDK's realtime entry points throw there.
+  subscribe = jest.fn(() => {
+    throw realtimeUnavailable()
+  })
+
+  live = jest.fn(() => {
+    throw realtimeUnavailable()
   })
 
   get = jest.fn(async (id: string) => {
@@ -444,8 +519,7 @@ function registerCallback(type: CallbackType, ...args: any[]) {
 function registerRoute(verb: string, path: string, constraintsOrHandler: object | Handler, maybeHandler?: Handler) {
   const constraints = typeof constraintsOrHandler === 'function' ? undefined : constraintsOrHandler
   const handler = (typeof constraintsOrHandler === 'function' ? constraintsOrHandler : maybeHandler) as
-    | Handler
-    | undefined
+    Handler | undefined
   if (typeof handler !== 'function') throw new Error('Invalid route handler')
 
   handlers.routes.push({
@@ -537,9 +611,27 @@ const Cloud = {
 }
 
 const ObjectFactory = jest.fn((...args: any[]) => patchObjectPersistence(new NimbuSDKAny.Object(...args)))
-Object.assign(ObjectFactory, NimbuSDKAny.Object)
+Object.assign(ObjectFactory, NimbuSDKAny.Object, {
+  watch: jest.fn(() => {
+    throw realtimeUnavailable()
+  }),
+})
+Object.defineProperty(ObjectFactory, Symbol.hasInstance, {
+  value: (candidate: unknown) => candidate instanceof NimbuSDKAny.Object,
+})
 
-const QueryFactory: any = (className: string) => createQuery(className)
+function classNameOf(objectClass: any): string {
+  if (typeof objectClass === 'string') return objectClass
+  return objectClass?.className ?? objectClass?.prototype?.className
+}
+
+// A plain function so both `Nimbu.Query('orders')` and `new Nimbu.Query('orders')` work.
+const QueryFactory: any = function Query(objectClass: any) {
+  return createQuery(classNameOf(objectClass))
+}
+Object.defineProperty(QueryFactory, Symbol.hasInstance, {
+  value: (candidate: unknown) => candidate instanceof TestingQuery || candidate instanceof NimbuSDKAny.Query,
+})
 QueryFactory.or = jest.fn((...queries: TestingQuery[]) => {
   const query = createQuery(queries[0]?.className)
   ;(query as any).filters.push((object: JsonObject) =>

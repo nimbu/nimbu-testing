@@ -41,9 +41,9 @@ beforeEach(async () => {
 
 `setup()` resets the Cloud Code registry, schedules, in-memory SDK store, API mocks, module mocks, and current request context. It also installs `global.Nimbu`.
 
-### Promise-native v1
+### Nimbu JS SDK v2
 
-`@nimbu/testing` v1 targets the Promise-native `nimbu-js-sdk` API. Deprecated `Nimbu.Future` helpers are intentionally not provided.
+`@nimbu/testing` v1 runs on `nimbu-js-sdk` 2.x and its Promise-native API. `Nimbu.Future` and the v1 `{ success, error }` callbacks are not provided, and neither is the opt-in `nimbu-js-sdk/compat` layer.
 
 ```ts
 // old Cloud Code
@@ -96,7 +96,11 @@ expect(paid.id).toBe('order-2')
 expect(ordersQuery.equalTo).toHaveBeenCalledWith('status', 'paid')
 ```
 
-The in-memory store supports common project test patterns: `first`, `find`, `findAll`, `get`, `count`, `findDeleted`, `eachBatch`, and `collection().fetch()`.
+The in-memory store supports common project test patterns: `first`, `find`, `findAll`, `get`, `count`, `each`, `eachBatch`, `findDeleted`, `clone`, and `collection().fetch()`. Both `Nimbu.Query('orders')` and `new Nimbu.Query('orders')` work, and so does a class from `Nimbu.Object.extend()`. As in SDK v2, `ascending()`/`descending()` replace the sort order, `addAscending()`/`addDescending()` add a key to it, and `first()` does not change the query's limit.
+
+Fixtures may include `short_id`. SDK v2 keeps it off the attributes, so read it with `object.shortId`.
+
+Nimbu Cloud Code has no WebSocket, so the realtime entry points (`Nimbu.Object.watch`, `object.watch`, `query.subscribe`, `query.live`) throw a `Nimbu.Error` with code `REALTIME_CLOSED`, the same as on the platform.
 
 ### API and module mocks
 

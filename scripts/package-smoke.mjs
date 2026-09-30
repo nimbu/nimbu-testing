@@ -27,7 +27,7 @@ writeFileSync(
       private: true,
       type: 'commonjs',
       scripts: {
-        test: 'jest --runInBand',
+        test: 'jest --runInBand --watchman=false',
       },
       packageManager: 'pnpm@10.33.2',
       dependencies: {
