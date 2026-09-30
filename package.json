@@ -1,7 +1,7 @@
 {
   "name": "@nimbu/testing",
   "description": "A set of utilities useful for testing Nimbu Cloud Code and the Nimbu JS SDK",
-  "version": "1.0.0",
+  "version": "1.0.0-beta.0",
   "author": "Zenjoy Engineering",
   "bugs": {
     "url": "https://github.com/nimbu/nimbu-testing/issues"
@@ -9,24 +9,24 @@
   "dependencies": {
     "@fetch-mock/jest": "0.2.20",
     "debug": "^4.4.3",
-    "nimbu-js-sdk": "2.0.0-beta.3",
+    "nimbu-js-sdk": "2.0.0",
     "tslib": "^2.8.1"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
-    "@jest/globals": "^30.3.0",
+    "@jest/globals": "^30.5.2",
     "@types/debug": "^4.1.13",
     "@types/jest": "^30.0.0",
-    "@types/node": "^22.19.17",
-    "eslint": "^10.3.0",
-    "eslint-plugin-jest": "^29.15.2",
-    "globals": "^17.6.0",
-    "jest": "^30.3.0",
-    "prettier": "^3.8.3",
-    "semver": "^7.7.3",
-    "ts-jest": "^29.4.9",
+    "@types/node": "^22.20.4",
+    "eslint": "^10.11.0",
+    "eslint-plugin-jest": "^29.16.6",
+    "globals": "^17.12.0",
+    "jest": "^30.5.2",
+    "prettier": "^3.9.9",
+    "semver": "^7.8.5",
+    "ts-jest": "^29.4.14",
     "typescript": "^6.0.3",
-    "typescript-eslint": "^8.59.2"
+    "typescript-eslint": "^8.71.0"
   },
   "peerDependencies": {
     "@jest/globals": "^30.0.0",
@@ -46,7 +46,7 @@
   "packageManager": "pnpm@10.33.2",
   "repository": {
     "type": "git",
-    "url": "https://github.com/nimbu/node-nimbu-client"
+    "url": "git+https://github.com/nimbu/nimbu-testing.git"
   },
   "scripts": {
     "build": "rm -rf lib && tsc -b",
