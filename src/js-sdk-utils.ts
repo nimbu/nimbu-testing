@@ -233,101 +233,96 @@ function realtimeUnavailable() {
   )
 }
 
+type QueryFilter = (object: JsonObject) => boolean
+
 class TestingQuery {
   className: string
-  private filters: Array<(object: JsonObject) => boolean> = []
+  // Keyed like the SDK's `_where` (`field` for equalTo, `field.<op>` for the rest), so a constraint
+  // replaces an earlier one with the same key, while different operators on one field still combine.
+  private filters = new Map<string, QueryFilter>()
   private sorters: Array<{ field: string; direction: 'asc' | 'desc' }> = []
   private skipCount = 0
   private limitCount = -1
-  private searchTerm?: string
 
-  equalTo = jest.fn((field: string, value: any) => {
-    this.filters.push((object) => readField(object, field) === value)
+  private where(key: string, filter: QueryFilter) {
+    this.filters.set(key, filter)
     return this
+  }
+
+  equalTo = jest.fn((field: string, value: any): TestingQuery => {
+    if (value === undefined) return this.doesNotExist(field)
+    return this.where(field, (object) => readField(object, field) === value)
   })
 
-  notEqualTo = jest.fn((field: string, value: any) => {
-    this.filters.push((object) => readField(object, field) !== value)
-    return this
-  })
+  notEqualTo = jest.fn((field: string, value: any) =>
+    this.where(`${field}.ne`, (object) => readField(object, field) !== value),
+  )
 
-  lessThan = jest.fn((field: string, value: any) => {
-    this.filters.push((object) => readField(object, field) < value)
-    return this
-  })
+  lessThan = jest.fn((field: string, value: any) =>
+    this.where(`${field}.lt`, (object) => readField(object, field) < value),
+  )
 
-  greaterThan = jest.fn((field: string, value: any) => {
-    this.filters.push((object) => readField(object, field) > value)
-    return this
-  })
+  greaterThan = jest.fn((field: string, value: any) =>
+    this.where(`${field}.gt`, (object) => readField(object, field) > value),
+  )
 
-  lessThanOrEqualTo = jest.fn((field: string, value: any) => {
-    this.filters.push((object) => readField(object, field) <= value)
-    return this
-  })
+  lessThanOrEqualTo = jest.fn((field: string, value: any) =>
+    this.where(`${field}.lte`, (object) => readField(object, field) <= value),
+  )
 
-  greaterThanOrEqualTo = jest.fn((field: string, value: any) => {
-    this.filters.push((object) => readField(object, field) >= value)
-    return this
-  })
+  greaterThanOrEqualTo = jest.fn((field: string, value: any) =>
+    this.where(`${field}.gte`, (object) => readField(object, field) >= value),
+  )
 
-  containedIn = jest.fn((field: string, values: any[]) => {
-    this.filters.push((object) => values.includes(readField(object, field)))
-    return this
-  })
+  containedIn = jest.fn((field: string, values: any[]) =>
+    this.where(`${field}.in`, (object) => values.includes(readField(object, field))),
+  )
 
-  notContainedIn = jest.fn((field: string, values: any[]) => {
-    this.filters.push((object) => !values.includes(readField(object, field)))
-    return this
-  })
+  notContainedIn = jest.fn((field: string, values: any[]) =>
+    this.where(`${field}.nin`, (object) => !values.includes(readField(object, field))),
+  )
 
-  containsAll = jest.fn((field: string, values: any[]) => {
-    this.filters.push((object) => {
+  containsAll = jest.fn((field: string, values: any[]) =>
+    this.where(`${field}.all`, (object) => {
       const fieldValue = readField(object, field)
       return Array.isArray(fieldValue) && values.every((value) => fieldValue.includes(value))
-    })
-    return this
-  })
+    }),
+  )
 
-  exists = jest.fn((field: string) => {
-    this.filters.push((object) => readField(object, field) != null)
-    return this
-  })
+  // exists and doesNotExist share one key, so the later call wins.
+  exists = jest.fn((field: string) => this.where(`${field}.exists`, (object) => readField(object, field) != null))
 
-  doesNotExist = jest.fn((field: string) => {
-    this.filters.push((object) => readField(object, field) == null)
-    return this
-  })
+  doesNotExist = jest.fn((field: string) => this.where(`${field}.exists`, (object) => readField(object, field) == null))
 
   matches = jest.fn((field: string, pattern: RegExp | string) => {
     const regex = pattern instanceof RegExp ? pattern : new RegExp(pattern)
-    this.filters.push((object) => regex.test(String(readField(object, field) ?? '')))
-    return this
+    return this.where(`${field}.regex`, (object) => regex.test(String(readField(object, field) ?? '')))
   })
 
-  startsWith = jest.fn((field: string, value: string) => {
-    this.filters.push((object) => String(readField(object, field) ?? '').startsWith(value))
-    return this
-  })
+  startsWith = jest.fn((field: string, value: string) =>
+    this.where(`${field}.start`, (object) => String(readField(object, field) ?? '').startsWith(value)),
+  )
 
-  endsWith = jest.fn((field: string, value: string) => {
-    this.filters.push((object) => String(readField(object, field) ?? '').endsWith(value))
-    return this
-  })
+  endsWith = jest.fn((field: string, value: string) =>
+    this.where(`${field}.end`, (object) => String(readField(object, field) ?? '').endsWith(value)),
+  )
 
-  contains = jest.fn((field: string, value: any) => {
-    this.filters.push((object) => {
+  contains = jest.fn((field: string, value: any) =>
+    this.where(`${field}.contains`, (object) => {
       const fieldValue = readField(object, field)
       if (Array.isArray(fieldValue)) return fieldValue.includes(value)
       return String(fieldValue ?? '').includes(String(value))
-    })
-    return this
-  })
+    }),
+  )
 
-  // Like SDK v2 (`equalTo('search', term)`), a later search replaces the earlier one.
+  // The SDK sends search as `equalTo('search', term)`, so it shares that key.
   search = jest.fn((term: string) => {
-    this.searchTerm = String(term).toLowerCase()
-    return this
+    const needle = String(term).toLowerCase()
+    return this.where('search', (object) =>
+      JSON.stringify(isNimbuObjectLike(object) ? serializeObject(object) : object)
+        .toLowerCase()
+        .includes(needle),
+    )
   })
 
   ascending = jest.fn((...keys: Array<string | string[]>) => {
@@ -384,15 +379,8 @@ class TestingQuery {
 
   private rawResults(limitCount = this.limitCount) {
     let results = Array.from(ensureClassStore(this.className).values())
-    results = results.filter((object) => this.filters.every((filter) => filter(object)))
-    if (this.searchTerm != null) {
-      const needle = this.searchTerm
-      results = results.filter((object) =>
-        JSON.stringify(isNimbuObjectLike(object) ? serializeObject(object) : object)
-          .toLowerCase()
-          .includes(needle),
-      )
-    }
+    const filters = Array.from(this.filters.values())
+    results = results.filter((object) => filters.every((filter) => filter(object)))
     if (this.sorters.length > 0) {
       results.sort((left, right) => {
         for (const { field, direction } of this.sorters) {
@@ -412,11 +400,10 @@ class TestingQuery {
 
   clone = jest.fn(() => {
     const copy = new TestingQuery(this.className)
-    copy.filters = [...this.filters]
+    copy.filters = new Map(this.filters)
     copy.sorters = [...this.sorters]
     copy.skipCount = this.skipCount
     copy.limitCount = this.limitCount
-    copy.searchTerm = this.searchTerm
     return copy
   })
 
@@ -637,12 +624,12 @@ Object.defineProperty(QueryFactory, Symbol.hasInstance, {
 })
 QueryFactory.or = jest.fn((...queries: TestingQuery[]) => {
   const query = createQuery(queries[0]?.className)
-  ;(query as any).filters.push((object: JsonObject) =>
+  // The SDK sends an or-query as `_where.where`.
+  return (query as any).where('where', (object: JsonObject) =>
     queries.some((candidate) =>
-      (candidate as any).filters.every((filter: (value: JsonObject) => boolean) => filter(object)),
+      Array.from((candidate as any).filters.values() as Iterable<QueryFilter>).every((filter) => filter(object)),
     ),
   )
-  return query
 })
 
 function installSdkFactories() {

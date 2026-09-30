@@ -150,6 +150,46 @@ describe('Nimbu SDK test helpers', () => {
     expect(await ids(Nimbu.Query('orders').ascending('status, id'))).toEqual(['b', 'a', 'c'])
   })
 
+  test('a constraint replaces an earlier one on the same field and operator, like SDK v2', async () => {
+    mockQueryResults({
+      orders: [
+        { id: 'order-1', status: 'draft', total: 10, note: 'rush' },
+        { id: 'order-2', status: 'paid', total: 20 },
+        { id: 'order-3', status: 'paid', total: 30 },
+      ],
+    })
+    const ids = async (query: any) => (await query.find()).map((order: any) => order.id)
+
+    expect(await ids(Nimbu.Query('orders').equalTo('status', 'draft').equalTo('status', 'paid'))).toEqual([
+      'order-2',
+      'order-3',
+    ])
+    expect(await ids(Nimbu.Query('orders').greaterThan('total', 5).greaterThan('total', 15))).toEqual([
+      'order-2',
+      'order-3',
+    ])
+    expect(await ids(Nimbu.Query('orders').greaterThan('total', 5).lessThan('total', 25))).toEqual([
+      'order-1',
+      'order-2',
+    ])
+    expect(await ids(Nimbu.Query('orders').exists('note').doesNotExist('note'))).toEqual(['order-2', 'order-3'])
+    expect(await ids(Nimbu.Query('orders').equalTo('note', undefined))).toEqual(['order-2', 'order-3'])
+  })
+
+  test('Query.or evaluates every constraint of each branch, including search', async () => {
+    mockQueryResults({
+      orders: [
+        { id: 'order-1', note: 'rush' },
+        { id: 'order-2', note: 'regular' },
+        { id: 'order-3', note: 'other' },
+      ],
+    })
+
+    const query = Nimbu.Query.or(Nimbu.Query('orders').search('rush'), Nimbu.Query('orders').search('regular'))
+
+    expect((await query.find()).map((order: any) => order.id)).toEqual(['order-1', 'order-2'])
+  })
+
   test('clone copies constraints without sharing later changes', async () => {
     mockQueryResults({
       orders: [
