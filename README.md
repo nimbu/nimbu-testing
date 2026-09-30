@@ -100,7 +100,7 @@ The in-memory store supports common project test patterns: `first`, `find`, `fin
 
 Fixtures may include `short_id`. SDK v2 keeps it off the attributes, so read it with `object.shortId`.
 
-Nimbu Cloud Code has no WebSocket, so the realtime entry points (`Nimbu.Object.watch`, `object.watch`, `query.subscribe`, `query.live`) throw a `Nimbu.Error` with code `REALTIME_CLOSED`, the same as on the platform.
+Nimbu Cloud Code has no WebSocket, so the testing runtime hides Node's global one from the SDK. Every realtime entry point (`watch` on a class from `Nimbu.Object.extend()` or on an object, `query.subscribe`, `query.live`) throws a `Nimbu.Error` with code `REALTIME_CLOSED`, the same as on the platform.
 
 ### API and module mocks
 

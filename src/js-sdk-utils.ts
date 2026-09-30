@@ -10,6 +10,10 @@ global.localStorage = require('localStorage')
 
 fetchMock.config.allowRelativeUrls = true
 
+// Nimbu Cloud Code has no WebSocket. Hiding Node's global one makes every SDK realtime entry point
+// (Object.watch, extended classes, object.watch, Query#subscribe/live) throw REALTIME_CLOSED, as on the platform.
+Object.defineProperty(NimbuSDK.Config, 'webSocket', { get: () => undefined, configurable: true })
+
 const NimbuSDKAny = NimbuSDK as any
 const debug = Debug('nimbu:console.log')
 
@@ -207,9 +211,6 @@ function patchObjectPersistence(object: any) {
   })
 
   object.destroy = jest.fn(async () => destroyFromStore(object))
-  object.watch = jest.fn(() => {
-    throw realtimeUnavailable()
-  })
   object.fetch = jest.fn(async () => {
     if (!object.id) throw new NimbuSDKAny.Error(101, 'Object not found.')
     const data = store.get(object.className)?.get(object.id)
@@ -238,6 +239,7 @@ class TestingQuery {
   private sorters: Array<{ field: string; direction: 'asc' | 'desc' }> = []
   private skipCount = 0
   private limitCount = -1
+  private searchTerm?: string
 
   equalTo = jest.fn((field: string, value: any) => {
     this.filters.push((object) => readField(object, field) === value)
@@ -322,13 +324,9 @@ class TestingQuery {
     return this
   })
 
+  // Like SDK v2 (`equalTo('search', term)`), a later search replaces the earlier one.
   search = jest.fn((term: string) => {
-    const needle = String(term).toLowerCase()
-    this.filters.push((object) =>
-      JSON.stringify(isNimbuObjectLike(object) ? serializeObject(object) : object)
-        .toLowerCase()
-        .includes(needle),
-    )
+    this.searchTerm = String(term).toLowerCase()
     return this
   })
 
@@ -387,6 +385,14 @@ class TestingQuery {
   private rawResults(limitCount = this.limitCount) {
     let results = Array.from(ensureClassStore(this.className).values())
     results = results.filter((object) => this.filters.every((filter) => filter(object)))
+    if (this.searchTerm != null) {
+      const needle = this.searchTerm
+      results = results.filter((object) =>
+        JSON.stringify(isNimbuObjectLike(object) ? serializeObject(object) : object)
+          .toLowerCase()
+          .includes(needle),
+      )
+    }
     if (this.sorters.length > 0) {
       results.sort((left, right) => {
         for (const { field, direction } of this.sorters) {
@@ -410,6 +416,7 @@ class TestingQuery {
     copy.sorters = [...this.sorters]
     copy.skipCount = this.skipCount
     copy.limitCount = this.limitCount
+    copy.searchTerm = this.searchTerm
     return copy
   })
 
@@ -611,11 +618,7 @@ const Cloud = {
 }
 
 const ObjectFactory = jest.fn((...args: any[]) => patchObjectPersistence(new NimbuSDKAny.Object(...args)))
-Object.assign(ObjectFactory, NimbuSDKAny.Object, {
-  watch: jest.fn(() => {
-    throw realtimeUnavailable()
-  }),
-})
+Object.assign(ObjectFactory, NimbuSDKAny.Object)
 Object.defineProperty(ObjectFactory, Symbol.hasInstance, {
   value: (candidate: unknown) => candidate instanceof NimbuSDKAny.Object,
 })

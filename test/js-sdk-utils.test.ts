@@ -8,6 +8,7 @@ import Nimbu, {
   objectFromFixture,
   setup,
 } from '../src/js-sdk-utils'
+import NimbuSDK from 'nimbu-js-sdk'
 
 describe('Nimbu SDK test helpers', () => {
   beforeEach(() => {
@@ -177,6 +178,9 @@ describe('Nimbu SDK test helpers', () => {
     expect((await Nimbu.Query('orders').contains('tags', 'vip').find()).map((o: any) => o.id)).toEqual(['order-1'])
     expect((await Nimbu.Query('orders').contains('note', 'Rush').find()).map((o: any) => o.id)).toEqual(['order-1'])
     expect((await Nimbu.Query('orders').search('rush').includeAll().find()).map((o: any) => o.id)).toEqual(['order-1'])
+    expect((await Nimbu.Query('orders').search('rush').search('regular').find()).map((o: any) => o.id)).toEqual([
+      'order-2',
+    ])
     await Nimbu.Query('orders').each((order: any) => seen.push(order.id))
     expect(seen).toEqual(['order-1', 'order-2'])
     await expect(
@@ -191,10 +195,16 @@ describe('Nimbu SDK test helpers', () => {
     const order = await Nimbu.Query('orders').get('order-1')
     const closed = expect.objectContaining({ code: Nimbu.Error.REALTIME_CLOSED })
 
+    const Order = Nimbu.Object.extend('orders')
+    const extended = new Order()
+    extended.id = 'order-1'
+
     expect(() => Nimbu.Query('orders').subscribe({})).toThrow(closed)
     expect(() => Nimbu.Query('orders').live()).toThrow(closed)
-    expect(() => Nimbu.Object.watch({})).toThrow(closed)
+    expect(() => new NimbuSDK.Query('orders').subscribe({})).toThrow(closed)
     expect(() => order.watch({})).toThrow(closed)
+    expect(() => Order.watch({})).toThrow(closed)
+    expect(() => extended.watch({})).toThrow(closed)
   })
 
   test('objects from the factory are Nimbu.Object instances and keep short_id across saves', async () => {
